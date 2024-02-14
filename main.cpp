@@ -1,25 +1,23 @@
-
-
 #include "functions.h"
 
 int main() {
-
     vector<string>* tasks = ReadTasks();
     for(auto task : (*tasks)){
+
+        //for cross Graph KClub
         ReadInput(task);
         Solve();
         CleanUp();
-    }
-    delete tasks;
 
+        /*
+        //for KClubSig to generate Table 5-7
+        ReadInputKClubSig(task);
+        KClubSig();
+        CleanUpKClubSig();
+         */
 
-//    vector<string>* tasks = ReadTasks();
-//    for(auto task : (*tasks)){
-//        ReadInput(task);
-//        CalculateRatio();
-//        CleanUp();
-//    }
-//    delete tasks;
+}
+delete tasks;
 
-    return 0;
+return 0;
 }

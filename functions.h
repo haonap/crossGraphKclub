@@ -1,5 +1,5 @@
 //
-// Created by Hao Pan on 4/5/21.
+// Created by Hao Pan on 9/20/21.
 //
 
 #ifndef PGRAPHKCLUB_FUNCTIONS_H
@@ -20,11 +20,33 @@
 #include <set>
 using namespace std;
 
-
 vector<string>* ReadTasks();
 void ReadInput(string);
-void CleanUp();
+void ReadInput(int,int);
+void ReadInputKClubSig(string);
+vector<int> GetHeuristicSol();
+graph* GetIntersectionGraph();
+graph* GetIntersectionGraphOfPowerGraphs();
 void Solve();
+void KClubSig();
+vector<int> GetPersistentKClubSig(int, int*, vector<int>*);
+void CorePeel(graph*, int);
+void CommunityPeel(graph*, int);
+vector<vector<int>> GetComponents(graph*, int);
+void DisconnectGraphsByComponents(vector<graph*>, graph*);
+void DeleteEdgesBasedOnComponents(vector<graph*>, vector<int>&, vector<int>&, int&);
+vector<bool> boolify(vector<int>&, int); // from parsimonious paper
+vector<int> Drop(graph*, vector<bool>&); // from parsimonious paper
+int KNeighborhoodSize(graph*, vector<bool>&, int); // from parsimonious paper
+vector<int> FindCommon(vector<graph*>, int, int);
+
+//vector<int> GetCore(int);
+//vector<graph*> PreprocessCore();
+//vector<vector<int>> GetComponents(graph*);
+
+void CleanUp();
+void CleanUpKClubSig();
+//void Solve();
 vector<int>* MINIMALIZE(graph*, int, int, int, vector<int>*);
 vector<int>* MINIMALIZE(graph*, int, int, int, vector<int>*, vector<int>*);
 bool ValidateSolution(vector<int>*);
@@ -36,27 +58,6 @@ string itos_c(int);
 double GetWallTime();
 double GetCPUTime();
 
-
-//namespace Color{
-//    enum Code {
-//        FG_RED      = 31,
-//        FG_GREEN    = 32,
-//        FG_BLUE     = 34,
-//        FG_DEFAULT  = 39,
-//        BG_RED      = 41,
-//        BG_GREEN    = 42,
-//        BG_BLUE     = 44,
-//        BG_DEFAULT  = 49
-//    };
-//    class Modifier {
-//        Code code;
-//    public:
-//        Modifier(Code pCode) : code(pCode) {}
-//        friend std::ostream&
-//        operator<<(std::ostream& os, const Modifier& mod) {
-//            return os << "\033[" << mod.code << "m";
-//        }
-//    };
-//}
+bool cmp(const vector<int> &,const vector<int> &);
 
 #endif //PGRAPHKCLUB_FUNCTIONS_H
