@@ -337,6 +337,7 @@ void pGraph_callback::callback(){
         numCallback++;
         double timeBegin = GetWallTime();
         int nParam = graphCollection[0]->n;
+        int pParam = graphCollection.size(); //number of colllections
         double *x = getSolution(X, nParam);
         vector<int> *curSol = new vector<int>();
         vector<int> *curSolC = new vector<int>();
@@ -345,7 +346,11 @@ void pGraph_callback::callback(){
             else curSolC->push_back(i);
         }
 
-        if (curSol->empty()) return;
+        if (curSol->empty()){
+            delete curSol;
+            delete curSolC;
+            return;
+        }
 
         // use PPCF + Independent set inequality: regardless of IS adding cut, we still need PPCF cut
         if (methodParam == "PPCF_IS") {
@@ -392,19 +397,40 @@ void pGraph_callback::callback(){
                 }
             }
             //add Independent set cut ending here
+        }//end if
+
+        //code updated by Yl
+        int n_curSol = curSol->size();
+        vector<graph*> subGraphCollection; //store sub graphs induced by curSol
+        //calculate distance from i to others in the subgraphs
+        for (auto graphPtr1: graphCollection) {
+            graph * subgraphPtr1 = graphPtr1->CreateSubgraph(curSol);
+            for (int i = 0; i < n_curSol; i++) {
+                subgraphPtr1->CalculateDistanceFrom(i);
+            }
+            subGraphCollection.push_back(subgraphPtr1);
         }
 
+
         graph *subgraphPtr;
-        for (auto graphPtr: graphCollection) {
-            subgraphPtr = graphPtr->CreateSubgraph(curSol);
-            for (int i = 0; i < subgraphPtr->n; i++) {
-                subgraphPtr->CalculateDistanceFrom(i);
-                for (int j = i + 1; j < subgraphPtr->n; j++) {
-                    if (subgraphPtr->vertices[i]->distanceTo[j] > kParam) {
+        graph *graphPtr;
+        //add lazy cut
+        for (int i = 0; i < n_curSol; i++) {
+            int u = (*curSol)[i];
+            for (int j = i + 1; j < n_curSol; j++) {
+                int v = (*curSol)[j];
+                bool isPeeled = false;//for each pair of uv, only needs to peel graphs once
+                vector<int> *curSolCPrime = new vector<int>();
+                vector<int> *toBeDeleted = new vector<int>();
+                for (int k1 = 0; k1 < pParam; k1++) {
+                    graphPtr = graphCollection[k1];
+                    subgraphPtr = subGraphCollection[k1];
+                    //check if there is need to add cut
+                    if (subgraphPtr->vertices[i]->distanceTo[j] > kParam){
+                        //CCF cut
                         if (methodParam == "BASE") {
                             vector<int> *minimalSeparatorPtr = MINIMALIZE(graphPtr, subgraphPtr->vertices[i]->name,
-                                                                          subgraphPtr->vertices[j]->name, kParam,
-                                                                          curSolC);
+                                                                          subgraphPtr->vertices[j]->name, kParam,curSolC);
                             GRBLinExpr EXPR = X[subgraphPtr->vertices[i]->name] + X[subgraphPtr->vertices[j]->name];
                             for (int k = 0; k < minimalSeparatorPtr->size(); k++)
                                 EXPR -= X[(*minimalSeparatorPtr)[k]];
@@ -412,170 +438,144 @@ void pGraph_callback::callback(){
 
                             if (numLazyCut == 0) aveNumTermsNeg = minimalSeparatorPtr->size();
                             else
-                                aveNumTermsNeg =
-                                        (aveNumTermsNeg * numLazyCut + minimalSeparatorPtr->size()) / (numLazyCut + 1);
-
+                                aveNumTermsNeg =(aveNumTermsNeg * numLazyCut + minimalSeparatorPtr->size()) / (numLazyCut + 1);
                             delete minimalSeparatorPtr;
-
-                        } else {
+                        //end if = 'Base'
+                        } else{
                             //This else condition is for the methodParam == "PPCF" or " PPCF_IS"
                             //when method PPCF or PPCF_IS, we need to add PPCF cut
 
-                            vector<int> *curSolCPrime = new vector<int>();
-                            vector<int> *toBeDeleted = new vector<int>();
-                            for (int k = 0; k < curSolC->size(); k++) {
-
-                                int kVertex = (*curSolC)[k];
-                                bool skipFlag = false;
-                                for (auto gPtr: graphCollection) {
-
-                                    bool temp1 = gPtr->IsKAdjacent(kVertex, subgraphPtr->vertices[i]->name);
-                                    bool temp2 = gPtr->IsKAdjacent(kVertex, subgraphPtr->vertices[j]->name);
-
-                                    if (temp1 && temp2) continue;
-                                    else {
-                                        skipFlag = true;
-                                        break;
-                                    }
-                                }
-
-                                if (skipFlag == false) curSolCPrime->push_back(kVertex);
-                                else toBeDeleted->push_back(kVertex);
-                            }
-
-                            // recursively delete vertices which are too far away from i or j (actually only removing edges in implementation)
-                            vector<bool> *toBeKeptBool = new vector<bool>(graphPtr->n, true);
-
-                            for (auto q: (*toBeDeleted))
-                                (*toBeKeptBool)[q] = false;
-
-                            int numVertexDeleted;
-                            do {
-                                numVertexDeleted = 0;
-                                for (auto gPtr: graphCollection) {
-                                    gPtr->CalculateDistanceFromTo(subgraphPtr->vertices[i]->name, toBeKeptBool);
-                                    gPtr->CalculateDistanceFromTo(subgraphPtr->vertices[j]->name, toBeKeptBool);
-                                    for (int p = 0; p < gPtr->n; p++) {
-                                        if (p == subgraphPtr->vertices[i]->name ||
-                                            p == subgraphPtr->vertices[j]->name)
-                                            continue;
-                                        if (gPtr->vertices[subgraphPtr->vertices[i]->name]->distanceTo[p] > kParam) {
-                                            if ((*toBeKeptBool)[p] == true) {
-                                                (*toBeKeptBool)[p] = false;
-                                                numVertexDeleted++;
-                                            }
+                            //only need to peel once for each pair of u and v
+                            if (!isPeeled){
+                                isPeeled = true;
+                                //only need to peel once for each pair of u and v
+                                for (int k = 0; k < curSolC->size(); k++) {
+                                    int kVertex = (*curSolC)[k];
+                                    bool skipFlag = false;
+                                    for (auto gPtr: graphCollection) {
+                                        bool temp1 = gPtr->IsKAdjacent(kVertex, subgraphPtr->vertices[i]->name);
+                                        bool temp2 = gPtr->IsKAdjacent(kVertex, subgraphPtr->vertices[j]->name);
+                                        if (temp1 && temp2) continue;
+                                        else {
+                                            skipFlag = true;
+                                            break;
                                         }
-
-                                        if (gPtr->vertices[subgraphPtr->vertices[j]->name]->distanceTo[p] > kParam) {
-                                            if ((*toBeKeptBool)[p] == true) {
-                                                (*toBeKeptBool)[p] = false;
-                                                numVertexDeleted++;
-                                            }
-                                        }
-
                                     }
-                                }
-                            } while (numVertexDeleted > 0);
-
-                            curSolCPrime->clear();
-                            toBeDeleted->clear();
-                            for (int k = 0; k < toBeKeptBool->size(); k++) {
-                                if ((*toBeKeptBool)[k] == false) toBeDeleted->push_back(k);
-                                else if (find(curSol->begin(), curSol->end(), k) == curSol->end())
-                                    curSolCPrime->push_back(k);
-                            }
-
-                            vector<int> *minimalSeparatorPtr;
-                            graph *sgPtr;
-                            graph *gPtr;
-                            int minimalSeparatorGraphIndex = -1;
-                            for (int k = 0; k < graphCollection.size(); k++) {
-
-                                gPtr = graphCollection[k];
-
-                                if (gPtr == graphPtr) sgPtr = subgraphPtr;
-                                else sgPtr = gPtr->CreateSubgraph(curSol);
-
-                                sgPtr->CalculateDistanceFrom(i);
-
-                                if (sgPtr->vertices[i]->distanceTo[j] > kParam) {
-
-                                    vector<int> *tempSeparatorPtr = MINIMALIZE(gPtr, subgraphPtr->vertices[i]->name,
-                                                                               subgraphPtr->vertices[j]->name, kParam,
-                                                                               toBeDeleted, curSolCPrime);
-
-                                    if (minimalSeparatorGraphIndex == -1) {
-                                        minimalSeparatorPtr = tempSeparatorPtr;
-                                        minimalSeparatorGraphIndex = k;
-                                    } else if (tempSeparatorPtr->size() < minimalSeparatorPtr->size()) {
-                                        delete minimalSeparatorPtr;
-                                        minimalSeparatorPtr = tempSeparatorPtr;
-                                        minimalSeparatorGraphIndex = k;
-                                    } else delete tempSeparatorPtr;
-
+                                    if (skipFlag == false) curSolCPrime->push_back(kVertex);
+                                    else toBeDeleted->push_back(kVertex);
                                 }
 
-                                if (sgPtr != subgraphPtr)
-                                    delete sgPtr; // when sgPtr == subgraphPtr, we don't delete sgPtr here to avoid double delete
+                                // recursively delete vertices which are too far away from i or j (actually only removing edges in implementation)
+                                vector<bool> *toBeKeptBool = new vector<bool>(graphPtr->n, true);
+                                for (auto q: *toBeDeleted)
+                                    (*toBeKeptBool)[q] = false;
 
-                            }
+                                int numVertexDeleted;
+                                do {
+                                    numVertexDeleted = 0;
+                                    for (auto gPtr: graphCollection) {
+                                        gPtr->CalculateDistanceFromTo(subgraphPtr->vertices[i]->name, toBeKeptBool);
+                                        gPtr->CalculateDistanceFromTo(subgraphPtr->vertices[j]->name, toBeKeptBool);
+                                        for (int p = 0; p < gPtr->n; p++) {
+                                            if (p == subgraphPtr->vertices[i]->name ||
+                                                p == subgraphPtr->vertices[j]->name)
+                                                continue;
+                                            if (gPtr->vertices[subgraphPtr->vertices[i]->name]->distanceTo[p] > kParam) {
+                                                if ((*toBeKeptBool)[p] == true) {
+                                                    (*toBeKeptBool)[p] = false;
+                                                    numVertexDeleted++;
+                                                }
+                                            }
+
+                                            if (gPtr->vertices[subgraphPtr->vertices[j]->name]->distanceTo[p] > kParam) {
+                                                if ((*toBeKeptBool)[p] == true) {
+                                                    (*toBeKeptBool)[p] = false;
+                                                    numVertexDeleted++;
+                                                }
+                                            }
+
+                                        }
+                                    }
+                                } while (numVertexDeleted > 0);
+                                //end iterative peeling
+
+                                curSolCPrime->clear();
+                                toBeDeleted->clear();
+                                for (int k = 0; k < toBeKeptBool->size(); k++) {
+                                    if ((*toBeKeptBool)[k] == false) toBeDeleted->push_back(k);
+                                    else if (find(curSol->begin(), curSol->end(), k) == curSol->end())
+                                        curSolCPrime->push_back(k);
+                                }
+                                delete toBeKeptBool;
+                            }//end if for checking if is_Peel
+
+                            // find PPCF and add lazy cut
+                            vector<int> *minimalSeparatorPtr = MINIMALIZE(graphPtr, subgraphPtr->vertices[i]->name,
+                                                                          subgraphPtr->vertices[j]->name, kParam, toBeDeleted, curSolCPrime);
 
                             GRBLinExpr EXPR = X[subgraphPtr->vertices[i]->name] + X[subgraphPtr->vertices[j]->name];
                             for (auto k: (*minimalSeparatorPtr))
                                 EXPR -= X[k];
                             addLazy(EXPR <= 1);
-                            /*
-                            if ((subgraphPtr->vertices[i]->name == 0) && (subgraphPtr->vertices[j]->name == 1)) {
-                                cout << subgraphPtr->vertices[i]->name << " " << X[subgraphPtr->vertices[i]->name].get(GRB_StringAttr_VarName) << endl;
-                                cout << subgraphPtr->vertices[j]->name << " " << X[subgraphPtr->vertices[j]->name].get(GRB_StringAttr_VarName) << endl;
-                                cout << EXPR << endl;
-                                cout << X[subgraphPtr->vertices[i]->name] + X[subgraphPtr->vertices[j]->name] << endl;
-                                //cout << "here" << endl;
-                            }*/
-
-                            if (numLazyCut == 0) aveNumTermsNeg = minimalSeparatorPtr->size();
+                            // calculate aveNumTermsNeg
+                            if (numLazyCut == 0)
+                                aveNumTermsNeg = minimalSeparatorPtr->size();
                             else
-                                aveNumTermsNeg =
-                                        (aveNumTermsNeg * numLazyCut + minimalSeparatorPtr->size()) / (numLazyCut + 1);
+                                aveNumTermsNeg = (aveNumTermsNeg * numLazyCut + minimalSeparatorPtr->size()) / (numLazyCut + 1);
 
+                            //check if PPCF is strengthened cut, i.e., check if scuh PPCF cut is NOT CCF aross ALL original graph collection
                             vector<bool> *checkStrength = new vector<bool>(graphPtr->n, true);
                             for (auto k: (*minimalSeparatorPtr))
                                 (*checkStrength)[k] = false;
 
-                            gPtr = graphCollection[minimalSeparatorGraphIndex];
-                            gPtr->CalculateDistanceFromTo(subgraphPtr->vertices[i]->name, checkStrength);
-                            if (gPtr->vertices[subgraphPtr->vertices[i]->name]->distanceTo[subgraphPtr->vertices[j]->name] <=
-                                kParam) {
+                            graph *gPtr;
+                            bool isSLC = true; //used to mark if such PPCF is strengthened cut
+                            for (int k = 0; k < graphCollection.size(); k++) {
+                                gPtr = graphCollection[k];
+                                gPtr->CalculateDistanceFromTo(subgraphPtr->vertices[i]->name, checkStrength);
+                                if (gPtr->vertices[subgraphPtr->vertices[i]->name]->distanceTo[subgraphPtr->vertices[j]->name] >
+                                    kParam) {
+                                    isSLC = false;
+                                    break;
+                                }
+                            }
+                            // if isSLC is true, it means that such PPCF is strengthened
+                            if (isSLC){
+                                numStrengthenedLazyCut++;
                                 if (numStrengthenedLazyCut == 0)
                                     aveNumTermsNegStrengthened = minimalSeparatorPtr->size();
                                 else
                                     aveNumTermsNegStrengthened = (aveNumTermsNegStrengthened * numStrengthenedLazyCut +
-                                                                  minimalSeparatorPtr->size()) /
-                                                                 (numStrengthenedLazyCut + 1);
-                                numStrengthenedLazyCut++;
+                                                                  minimalSeparatorPtr->size()) /(numStrengthenedLazyCut + 1);
                             }
 
                             delete checkStrength;
                             delete minimalSeparatorPtr;
-                            delete curSolCPrime;
-                            delete toBeDeleted;
-                            delete toBeKeptBool;
 
-                        }//end else if
-
+                        }//end else
                         numLazyCut++;
-                        delete subgraphPtr;
+                        //delete below so that only one cut per callback, otherwise comment below
+                        delete curSolCPrime;
+                        delete toBeDeleted;
                         goto theEnd;
-                    }
-                }
-            }
-            delete subgraphPtr;
-        }
+                    } //end if >kParam
+                }//end for loop with k1< pParam
+                delete curSolCPrime;
+                delete toBeDeleted;
+            }//end for loop with j <n_curSol
+        }//end for loop with i <n_curSol
 
-
+        //delete subgraphPtr;
         theEnd:
         delete curSol;
         delete curSolC;
+
+        //clear subgraph collection
+        for(auto subgraphPtr1 : subGraphCollection)
+            delete subgraphPtr1;
+        subGraphCollection.clear();
+
+        //cout<<"finished one callback and deleted subGraphCollection"<<endl;
 
         callbackTime += GetWallTime() - timeBegin;
 

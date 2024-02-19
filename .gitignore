@@ -28,3 +28,6 @@ cmake-build-debug/crossGraphKclub
 cmake-build-debug/Testing/Temporary/LastTest.log
 instances/.DS_Store
 .DS_Store
+*.iml
+*.xml
+CMakeLists.txt

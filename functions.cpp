@@ -749,7 +749,7 @@ void Solve(){
 
                 MODEL_SEP.set(GRB_DoubleParam_TimeLimit, 30);
                 //Set Gurobi screen display flag: 0=switch off; 1=default
-                MODEL_SEP.getEnv().set(GRB_IntParam_OutputFlag,1);
+                MODEL_SEP.getEnv().set(GRB_IntParam_OutputFlag,0);
                 Z[i] = MODEL_SEP.addVars(nParam_Sep, GRB_BINARY);
                 W[i] = MODEL_SEP.addVars(nParam_Sep, GRB_CONTINUOUS);
                 MODEL_SEP.update();
