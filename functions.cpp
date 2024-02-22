@@ -416,14 +416,14 @@ vector<int> GetPersistentKClubSig(int windowHead, int* peelPtr, vector<int>* fla
         MODEL.set(GRB_IntAttr_ModelSense, -1);
         MODEL.set(GRB_IntParam_LazyConstraints,1);
         int numStrengthenedLazyCut = 0, numLazyCut = 0, numCallback = 0, independentSetInequalityCount = 0, independentSetInequalityCountViolateEpsilon = 0;
-        double callbackTime = 0, aveNumTermsNeg = 0, aveNumTermsNegStrengthened = 0;
+        double callbackTime = 0, countSLC_Time = 0, aveNumTermsNeg = 0, aveNumTermsNegStrengthened = 0;
 
         //if Method does not use PPCF_IS, they are empty set; this is to have a general callback function
         vector<GRBModel> SEP_MODELS;
         vector<GRBVar*> Z(pParam);
         vector<GRBVar*> W(pParam);
 
-        pGraph_callback myCallback = pGraph_callback(methodParam, X, graphCollectionAfterPeeling, kParam, numStrengthenedLazyCut, numLazyCut, numCallback, callbackTime, aveNumTermsNeg, aveNumTermsNegStrengthened,SEP_MODELS, Z, W, 0.5, independentSetInequalityCount, independentSetInequalityCountViolateEpsilon);
+        pGraph_callback myCallback = pGraph_callback(methodParam, X, graphCollectionAfterPeeling, kParam, numStrengthenedLazyCut, numLazyCut, numCallback, callbackTime,countSLC_Time, aveNumTermsNeg, aveNumTermsNegStrengthened,SEP_MODELS, Z, W, 0.5, independentSetInequalityCount, independentSetInequalityCountViolateEpsilon);
         MODEL.setCallback(&myCallback);
 
         MODEL.optimize();
@@ -728,7 +728,7 @@ void Solve(){
         MODEL.set(GRB_IntAttr_ModelSense, -1);//objective maximization
         MODEL.set(GRB_IntParam_LazyConstraints,1);
         int numStrengthenedLazyCut = 0, numLazyCut = 0, numCallback = 0, independentSetInequalityCount = 0, independentSetInequalityCountViolateEpsilon = 0;
-        double callbackTime = 0, aveNumTermsNeg = 0, aveNumTermsNegStrengthened = 0;
+        double callbackTime = 0, countSLC_Time =0, aveNumTermsNeg = 0, aveNumTermsNegStrengthened = 0;
 
         vector<GRBModel> SEP_MODELS; //if Method does not use PPCF_IS, they are empty set; this is to have a general callback function
         vector<GRBVar*> Z(pParam);
@@ -786,7 +786,7 @@ void Solve(){
             }
             //Separation formulation end
         }//end if
-        pGraph_callback myCallback = pGraph_callback(methodParam, X, graphCollectionAfterPeeling, kParam, numStrengthenedLazyCut, numLazyCut, numCallback, callbackTime, aveNumTermsNeg, aveNumTermsNegStrengthened, SEP_MODELS, Z, W, epsilonParam, independentSetInequalityCount, independentSetInequalityCountViolateEpsilon);
+        pGraph_callback myCallback = pGraph_callback(methodParam, X, graphCollectionAfterPeeling, kParam, numStrengthenedLazyCut, numLazyCut, numCallback, callbackTime,countSLC_Time, aveNumTermsNeg, aveNumTermsNegStrengthened, SEP_MODELS, Z, W, epsilonParam, independentSetInequalityCount, independentSetInequalityCountViolateEpsilon);
         MODEL.setCallback(&myCallback);
         MODEL.optimize();
         double timeEnd = GetWallTime();
@@ -849,6 +849,7 @@ void Solve(){
         cout << "DURATION : " << fixed << setprecision(2) << duration << endl;
         cout << "NUM OF CALLBACKS : " << numCallback << endl;
         cout << "CALLBACK TIME : " << fixed << setprecision(2) << callbackTime << endl;
+        cout << "CountSLC TIME : " << fixed << setprecision(2) << countSLC_Time << endl;
         cout << "NUM OF LAZY CONSTRAINTS ADDED : " << numLazyCut << endl;
         cout << "NUM OF STRENGTHENED LAZY CONSTRAINTS ADDED : " << numStrengthenedLazyCut << endl;
         cout << "AVE NUM OF NEGATIVE TERMS : " << aveNumTermsNeg << endl;
@@ -859,7 +860,7 @@ void Solve(){
         fout.open(methodParam + ".csv", ios::in);
         if(fout.fail()){
             fout.open(methodParam + ".csv", ios::out);
-            fout << "method,p, k, instance,#nodes before peel,#nodes after peel,#edges before peel, #edge after peel,Heuristic value, obj, obj bound,MIP Gap (%), Peel Time, GRB solve Time, duration, num callbacks, callback time, num lazy cuts, num strengthened lazy cuts, ave num of negative terms, ave num of negative terms strengthened, num BB nodes, num ind set cuts violated, num ind set cuts violated epsilon\n";
+            fout << "method,p, k, instance,#nodes before peel,#nodes after peel,#edges before peel, #edge after peel,Heuristic value, obj, obj bound,MIP Gap (%), Peel Time, GRB solve Time, duration, num callbacks, callback time, countSLC time, num lazy cuts, num strengthened lazy cuts, ave num of negative terms, ave num of negative terms strengthened, num BB nodes, num ind set cuts violated, num ind set cuts violated epsilon\n";
             fout.close();
         }else{
             fout.close();
@@ -883,6 +884,7 @@ void Solve(){
         fout << fixed << setprecision(2) << duration << ",";
         fout << numCallback << ",";
         fout << fixed << setprecision(2) << callbackTime << ",";
+        fout << fixed << setprecision(2) << countSLC_Time << ",";
         fout << numLazyCut << ",";
         fout <<  numStrengthenedLazyCut << ",";
         fout << aveNumTermsNeg << ",";

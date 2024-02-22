@@ -76,6 +76,7 @@ public:
     int& numLazyCut;
     int& numCallback;
     double& callbackTime;
+    double& countSLC_Time; //count time for counting number of strengthened cuts
     double& aveNumTermsNeg;
     double& aveNumTermsNegStrengthened;
     vector<GRBModel>& SEP_MODELS;
@@ -85,7 +86,7 @@ public:
     int& independentSetInequalityCount;
     int& independentSetInequalityCountViolateEpsilon;
 
-    pGraph_callback(string, GRBVar*, vector<graph*>&, int, int&, int&, int&, double&, double&, double&, vector<GRBModel>&, vector<GRBVar*>&, vector<GRBVar*>&, double, int&, int&);
+    pGraph_callback(string, GRBVar*, vector<graph*>&, int, int&, int&, int&, double&, double&,double&, double&, vector<GRBModel>&, vector<GRBVar*>&, vector<GRBVar*>&, double, int&, int&);
 
 protected:
     //callback function

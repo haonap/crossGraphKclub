@@ -327,7 +327,7 @@ void graph::CalculateDistanceFromTo(int source, vector<bool>* S) {
 }
 
 
-pGraph_callback::pGraph_callback(string methodParam, GRBVar* X, vector<graph*>& graphCollection, int kParam, int& numStrengthenedLazyCut, int& numLazyCut, int& numCallback, double& callbackTime, double& aveNumTermsNeg, double& aveNumTermsNegStrengthened, vector<GRBModel>& SEP_MODELS, vector<GRBVar*>& Z, vector<GRBVar*>& W, double epsilon, int& independentSetInequalityCount, int& independentSetInequalityCountViolateEpsilon) : methodParam(methodParam), X(X), graphCollection(graphCollection), kParam(kParam), numStrengthenedLazyCut(numStrengthenedLazyCut), numLazyCut(numLazyCut), numCallback(numCallback), callbackTime(callbackTime), aveNumTermsNeg(aveNumTermsNeg), aveNumTermsNegStrengthened(aveNumTermsNegStrengthened), SEP_MODELS(SEP_MODELS), Z(Z), W(W), epsilon(epsilon), independentSetInequalityCount(independentSetInequalityCount), independentSetInequalityCountViolateEpsilon(independentSetInequalityCountViolateEpsilon){}
+pGraph_callback::pGraph_callback(string methodParam, GRBVar* X, vector<graph*>& graphCollection, int kParam, int& numStrengthenedLazyCut, int& numLazyCut, int& numCallback, double& callbackTime, double& countSLC_Time,double& aveNumTermsNeg, double& aveNumTermsNegStrengthened, vector<GRBModel>& SEP_MODELS, vector<GRBVar*>& Z, vector<GRBVar*>& W, double epsilon, int& independentSetInequalityCount, int& independentSetInequalityCountViolateEpsilon) : methodParam(methodParam), X(X), graphCollection(graphCollection), kParam(kParam), numStrengthenedLazyCut(numStrengthenedLazyCut), numLazyCut(numLazyCut), numCallback(numCallback), callbackTime(callbackTime),countSLC_Time(countSLC_Time), aveNumTermsNeg(aveNumTermsNeg), aveNumTermsNegStrengthened(aveNumTermsNegStrengthened), SEP_MODELS(SEP_MODELS), Z(Z), W(W), epsilon(epsilon), independentSetInequalityCount(independentSetInequalityCount), independentSetInequalityCountViolateEpsilon(independentSetInequalityCountViolateEpsilon){}
 
 
 void pGraph_callback::callback(){
@@ -524,6 +524,7 @@ void pGraph_callback::callback(){
                                 aveNumTermsNeg = (aveNumTermsNeg * numLazyCut + minimalSeparatorPtr->size()) / (numLazyCut + 1);
 
                             //check if PPCF is strengthened cut, i.e., check if scuh PPCF cut is NOT CCF aross ALL original graph collection
+                            double SLCtimeBegin = GetWallTime(); //  time for counting number of SLC
                             vector<bool> *checkStrength = new vector<bool>(graphPtr->n, true);
                             for (auto k: (*minimalSeparatorPtr))
                                 (*checkStrength)[k] = false;
@@ -539,6 +540,7 @@ void pGraph_callback::callback(){
                                     break;
                                 }
                             }
+                            countSLC_Time += GetWallTime() - SLCtimeBegin; //time for counting number of SLC
                             // if isSLC is true, it means that such PPCF is strengthened
                             if (isSLC){
                                 numStrengthenedLazyCut++;
