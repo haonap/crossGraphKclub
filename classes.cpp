@@ -556,10 +556,10 @@ void pGraph_callback::callback(){
 
                         }//end else
                         numLazyCut++;
-                        //delete below so that only one cut per callback, otherwise comment below
-                        delete curSolCPrime;
-                        delete toBeDeleted;
-                        goto theEnd;
+                        //uncomment below so that only one cut per callback; otherwise comment below to run the version: add more cuts per callback
+                        //delete curSolCPrime;
+                        //delete toBeDeleted;
+                        //goto theEnd;
                     } //end if >kParam
                 }//end for loop with k1< pParam
                 delete curSolCPrime;
@@ -567,8 +567,7 @@ void pGraph_callback::callback(){
             }//end for loop with j <n_curSol
         }//end for loop with i <n_curSol
 
-        //delete subgraphPtr;
-        theEnd:
+        //theEnd:
         delete curSol;
         delete curSolC;
 
